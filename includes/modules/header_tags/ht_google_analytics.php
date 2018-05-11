@@ -17,10 +17,15 @@
     var $description;
     var $sort_order;
     var $enabled = false;
+    var $cookies_consent_group;
 
     function __construct() {
       $this->title = MODULE_HEADER_TAGS_GOOGLE_ANALYTICS_TITLE;
       $this->description = MODULE_HEADER_TAGS_GOOGLE_ANALYTICS_DESCRIPTION;
+
+      $this->cookies_consent_group = array('title' => $this->title, 
+                                           'cookie_files' => array('__utma' => '/', '__utmb' => '/', '__utmc' => '/', '__utmt' => '/', '__utmz' => '/'),
+                                           'cookie_group' => 'third');
 
       if ( defined('MODULE_HEADER_TAGS_GOOGLE_ANALYTICS_STATUS') ) {
         $this->sort_order = MODULE_HEADER_TAGS_GOOGLE_ANALYTICS_SORT_ORDER;
@@ -31,7 +36,7 @@
     function execute() {
       global $PHP_SELF, $oscTemplate, $customer_id;
 
-      if (tep_not_null(MODULE_HEADER_TAGS_GOOGLE_ANALYTICS_ID)) {
+      if ( tep_not_null(MODULE_HEADER_TAGS_GOOGLE_ANALYTICS_ID) && $oscTemplate->cookies[$this->code] == 'True' ) {
         if (MODULE_HEADER_TAGS_GOOGLE_ANALYTICS_JS_PLACEMENT != 'Header') {
           $this->group = 'footer_scripts';
         }
@@ -111,6 +116,14 @@
 
     function isEnabled() {
       return $this->enabled;
+    }
+
+    function hasCookie() {
+      return (is_array($this->cookies_consent_group) && !empty($this->cookies_consent_group));
+    }
+
+    function getCookies() {
+      return $this->cookies_consent_group;
     }
 
     function check() {

@@ -17,10 +17,16 @@
     var $description;
     var $sort_order;
     var $enabled = false;
+    var $cookies_consent_group;
 
     function __construct() {
+      global $cookie_path;
       $this->title = MODULE_HEADER_TAGS_GRID_LIST_VIEW_TITLE;
       $this->description = MODULE_HEADER_TAGS_GRID_LIST_VIEW_DESCRIPTION;
+
+      $this->cookies_consent_group = array('title' => $this->title, 
+                                           'cookie_files' => array('list_grid' => $cookie_path),
+                                           'cookie_group' => 'functional');
 
       if ( defined('MODULE_HEADER_TAGS_GRID_LIST_VIEW_STATUS') ) {
         $this->sort_order = MODULE_HEADER_TAGS_GRID_LIST_VIEW_SORT_ORDER;
@@ -29,9 +35,9 @@
     }
 
     function execute() {
-      global $PHP_SELF, $oscTemplate;
+      global $PHP_SELF, $oscTemplate, $cookie_path;
 
-      if (tep_not_null(MODULE_HEADER_TAGS_GRID_LIST_VIEW_PAGES)) {
+      if (tep_not_null(MODULE_HEADER_TAGS_GRID_LIST_VIEW_PAGES) && $oscTemplate->cookies[$this->code] == 'True') {
         $pages_array = array();
 
         foreach (explode(';', MODULE_HEADER_TAGS_GRID_LIST_VIEW_PAGES) as $page) {
@@ -44,13 +50,21 @@
 
         if (in_array(basename($PHP_SELF), $pages_array)) {
           $oscTemplate->addBlock('<script src="ext/jquery/cookie.js"></script>' . "\n", $this->group);
-          $oscTemplate->addBlock('<script>$(function() {var cc = $.cookie(\'list_grid\');if (cc == \'list\') {$(\'#products .item\').removeClass(\'grid-group-item\').addClass(\'list-group-item\');}else {$(\'#products .item\').removeClass(\'list-group-item\').addClass(\'grid-group-item\');}$(document).ready(function() {$(\'#list\').click(function(event){event.preventDefault();$(\'#products .item\').addClass(\'list-group-item\').removeClass(\'grid-group-item\');$.cookie(\'list_grid\', \'list\');});$(\'#grid\').click(function(event){event.preventDefault();$(\'#products .item\').removeClass(\'list-group-item\').addClass(\'grid-group-item\');$.cookie(\'list_grid\', \'grid\');});});});</script>' . "\n", $this->group);
+          $oscTemplate->addBlock('<script>$(function() {var cc = $.cookie(\'list_grid\');if (cc == \'list\') {$(\'#products .item\').removeClass(\'grid-group-item\').addClass(\'list-group-item\');}else {$(\'#products .item\').removeClass(\'list-group-item\').addClass(\'grid-group-item\');}$(document).ready(function() {$(\'#list\').click(function(event){event.preventDefault();$(\'#products .item\').addClass(\'list-group-item\').removeClass(\'grid-group-item\');$.cookie(\'list_grid\', \'list\',{path:\''.$cookie_path.'\'});});$(\'#grid\').click(function(event){event.preventDefault();$(\'#products .item\').removeClass(\'list-group-item\').addClass(\'grid-group-item\');$.cookie(\'list_grid\', \'grid\',{path:\''.$cookie_path.'\'});});});});</script>' . "\n", $this->group);
         }
       }
     }
 
     function isEnabled() {
       return $this->enabled;
+    }
+
+    function hasCookie() {
+      return (is_array($this->cookies_consent_group) && !empty($this->cookies_consent_group));
+    }
+
+    function getCookies() {
+      return $this->cookies_consent_group;
     }
 
     function check() {

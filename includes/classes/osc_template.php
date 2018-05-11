@@ -18,9 +18,15 @@
     var $_grid_content_width = BOOTSTRAP_CONTENT;
     var $_grid_column_width = 0; // deprecated
     var $_data = array();
+    var $_cookie_modules = array();
+    var $_cookie_expiration_time;
+    var $_expiration = 365*24*60*60;
+    var $_cookies = array();
 
     function __construct() {
       $this->_title = TITLE;
+      $this->_cookie_expiration_time = time()+$this->_expiration;
+      $this->consentRead();
     }
 
     function setGridContainerWidth($width) {
@@ -99,11 +105,17 @@
 
                 if ( $mb->isEnabled() ) {
                   $mb->execute();
+
+                  if (method_exists($mb, 'hasCookie') && $mb->hasCookie()) {
+                    $this->_cookie_modules[$class] = $mb->getCookies();
+                  }
                 }
               }
             }
           }
         }
+
+        $this->cookiesBuild();
       }
     }
 
@@ -169,6 +181,87 @@
       }
 
       return $result;
+    }
+
+    function consentRead() {
+      global $cookie_path, $cookie_domain;
+
+      if (isset($_COOKIE['oscConsent'])) {
+        // Retrieve the contents from the cookie
+        $result = json_decode(stripslashes($_COOKIE['oscConsent']), true);
+
+        $oscConsent = array();
+        foreach ($result as $value) {
+          $pieces = explode("|", $value);
+          $this->cookies[$pieces[1]] = $pieces[0];
+        }
+      }
+    }
+
+    function cookiesBuild() {
+      global $cookie_path, $cookie_domain, $PHP_SELF;
+
+      if (isset($_GET['action'])) {
+        switch ($_GET['action']) {
+          case 'config_consent' : $this->deleteSensitiveCookie('oscConsent', $cookie_path, $cookie_domain);
+                                  $this->saveConsent($_POST['options']);
+                                  tep_redirect(tep_href_link($PHP_SELF, tep_get_all_get_params(array('action'))));
+                                  break;
+        }
+      }
+
+      $cookies_array = array();
+      $rebuild = false;
+      foreach ($this->_cookie_modules as $class => $parameters) {
+        $cookies_array[$class] = '1';
+        if (!isset($this->cookies[$class])) {
+          $rebuild = true;
+        }
+      }
+
+      if (!isset($_COOKIE['oscConsent']) || $rebuild) {
+        if ($rebuild) {
+          $this->deleteSensitiveCookie('oscConsent', $cookie_path, $cookie_domain);
+        }
+
+        $this->saveConsent($cookies_array);
+      }
+    }
+
+    function saveConsent($parameters) {
+      global $cookie_domain;
+
+      $consents = $this->cookies;
+      if (is_array($parameters)) {
+        foreach ($parameters as $class => $value) {
+          $consents[$class] = ($value ? 'True' : 'False');
+
+          if ( !$value && isset($this->_cookie_modules[$class]['cookie_files']) && is_array($this->_cookie_modules[$class]['cookie_files']) ) {
+            foreach ($this->_cookie_modules[$class]['cookie_files'] as $name => $path) {
+              if ( isset($_COOKIE[$name]) ) {
+                $this->deleteSensitiveCookie($name, $path, $cookie_domain);
+              }
+            }
+          }
+        }
+
+      }
+
+      $new_consents = array();
+      foreach ($consents as $key => $value) {
+        $new_consents[] = (string)$value . '|' . $key;
+      }
+
+      $parameters = json_encode($new_consents);
+      setcookie("oscConsent", $parameters, $this->_cookie_expiration_time, $cookie_path, $cookie_domain);
+    }
+
+    function deleteSensitiveCookie($name, $path, $domain) {
+      setcookie($name, '', time()-3600, $path, $domain);
+    }
+
+    function getCookieModuleClass($class) {
+      return $this->cookies[$class];
     }
   }
 ?>
